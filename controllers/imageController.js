@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
-import * as Jimp from "jimp";
+import Jimp from "jimp";
+
 
 // Upload
 export const uploadImage = (req, res) => {
