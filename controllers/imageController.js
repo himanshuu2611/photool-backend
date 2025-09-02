@@ -1,6 +1,7 @@
-import sharp from "sharp";
 import path from "path";
 import fs from "fs";
+import * as Jimp from "jimp";
+
 
 // Upload
 export const uploadImage = (req, res) => {
@@ -9,7 +10,6 @@ export const uploadImage = (req, res) => {
 };
 
 // Download
-// Download
 export const downloadImage = (req, res) => {
   const filePath = path.join(process.cwd(), "uploads", req.params.filename);
 
@@ -17,20 +17,17 @@ export const downloadImage = (req, res) => {
     return res.status(404).json({ error: "File not found" });
   }
 
-  // Force download and delete after download
   res.download(filePath, req.params.filename, (err) => {
     if (err) {
       console.error("Error downloading file:", err);
       res.status(500).send("Error downloading file");
     } else {
-      // Delete file after sending
       fs.unlink(filePath, (err) => {
         if (err) console.error("Error deleting file:", err);
       });
     }
   });
 };
-
 
 // Resize
 export const resizeImage = async (req, res) => {
@@ -39,11 +36,11 @@ export const resizeImage = async (req, res) => {
     const inputPath = path.join("uploads", filename);
     const outputPath = path.join("uploads", `resized-${filename}`);
 
-    if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
+    if (!fs.existsSync(inputPath))
+      return res.status(404).json({ error: "File not found" });
 
-    await sharp(inputPath)
-      .resize(parseInt(width), parseInt(height))
-      .toFile(outputPath);
+    const image = await Jimp.read(inputPath);
+    await image.resize(parseInt(width), parseInt(height)).writeAsync(outputPath);
 
     res.json({ message: "Image resized", filename: `resized-${filename}` });
   } catch (err) {
@@ -52,39 +49,17 @@ export const resizeImage = async (req, res) => {
 };
 
 // Compress
-
 export const compressImage = async (req, res) => {
   try {
-    const { filename, targetSizeKB } = req.body;
+    const { filename, quality } = req.body; // quality = 1-100
     const inputPath = path.join("uploads", filename);
     const outputPath = path.join("uploads", `compressed-${filename}`);
 
-    if (!fs.existsSync(inputPath)) {
+    if (!fs.existsSync(inputPath))
       return res.status(404).json({ error: "File not found" });
-    }
 
-    // Start with high quality
-    let quality = 90;
-    let image = sharp(inputPath);
-    let metadata = await image.metadata();
-    let width = metadata.width;
-    let height = metadata.height;
-
-    let buffer = await image.jpeg({ quality }).toBuffer();
-
-    // Keep compressing until under target size
-    while (buffer.length / 1024 > targetSizeKB && quality > 5) {
-      quality -= 5;
-      width = Math.floor(width * 0.9);
-      height = Math.floor(height * 0.9);
-
-      buffer = await sharp(buffer) // ✅ use buffer, not inputPath
-        .resize(width, height)
-        .jpeg({ quality })
-        .toBuffer();
-    }
-
-    await sharp(buffer).toFile(outputPath);
+    const image = await Jimp.read(inputPath);
+    await image.quality(Math.min(Math.max(parseInt(quality), 1), 100)).writeAsync(outputPath);
 
     const stats = fs.statSync(outputPath);
     const outputKB = Math.round(stats.size / 1024);
@@ -99,7 +74,6 @@ export const compressImage = async (req, res) => {
   }
 };
 
-
 // Rotate
 export const rotateImage = async (req, res) => {
   try {
@@ -107,9 +81,11 @@ export const rotateImage = async (req, res) => {
     const inputPath = path.join("uploads", filename);
     const outputPath = path.join("uploads", `rotated-${filename}`);
 
-    if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
+    if (!fs.existsSync(inputPath))
+      return res.status(404).json({ error: "File not found" });
 
-    await sharp(inputPath).rotate(parseInt(angle)).toFile(outputPath);
+    const image = await Jimp.read(inputPath);
+    await image.rotate(parseInt(angle)).writeAsync(outputPath);
 
     res.json({ message: "Image rotated", filename: `rotated-${filename}` });
   } catch (err) {
@@ -124,11 +100,13 @@ export const cropImage = async (req, res) => {
     const inputPath = path.join("uploads", filename);
     const outputPath = path.join("uploads", `cropped-${filename}`);
 
-    if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
+    if (!fs.existsSync(inputPath))
+      return res.status(404).json({ error: "File not found" });
 
-    await sharp(inputPath)
-      .extract({ width: parseInt(width), height: parseInt(height), left: parseInt(left), top: parseInt(top) })
-      .toFile(outputPath);
+    const image = await Jimp.read(inputPath);
+    await image
+      .crop(parseInt(left), parseInt(top), parseInt(width), parseInt(height))
+      .writeAsync(outputPath);
 
     res.json({ message: "Image cropped", filename: `cropped-${filename}` });
   } catch (err) {
