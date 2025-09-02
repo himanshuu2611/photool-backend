@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
-import Jimp from "jimp";
+import JimpCJS from "jimp"; // Import as CJS
+const Jimp = JimpCJS.default || JimpCJS; // Fix for ESM + Node 22+
 
 // Upload
 export const uploadImage = (req, res) => {
