@@ -1,11 +1,15 @@
 import path from "path";
 import fs from "fs";
-import * as Jimp from "jimp";
+import sharp from "sharp";
 
-const uploadDir = path.join(process.cwd(), "uploads");
+const isServerless = process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME;
+const uploadDir = isServerless ? "/tmp" : path.join(process.cwd(), "uploads");
+
+// Create uploads folder if needed
+if (!isServerless && !fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
 // ======================
-// Upload
+// Upload Image
 // ======================
 export const uploadImage = (req, res) => {
   try {
@@ -18,7 +22,7 @@ export const uploadImage = (req, res) => {
 };
 
 // ======================
-// Download
+// Download Image
 // ======================
 export const downloadImage = (req, res) => {
   try {
@@ -27,13 +31,14 @@ export const downloadImage = (req, res) => {
 
     res.download(filePath, req.params.filename, (err) => {
       if (err) {
-        console.error("Error downloading file:", err);
-        res.status(500).json({ error: "Error downloading file" });
-      } else {
-        fs.unlink(filePath, (err) => {
-          if (err) console.error("Error deleting file:", err);
-        });
+        console.error("Download Error:", err);
+        return res.status(500).json({ error: "Error downloading file" });
       }
+
+      // Delete file after download in serverless or local (optional)
+      fs.unlink(filePath, (err) => {
+        if (err) console.error("Error deleting file:", err);
+      });
     });
   } catch (err) {
     console.error("Download Error:", err);
@@ -41,8 +46,9 @@ export const downloadImage = (req, res) => {
   }
 };
 
+
 // ======================
-// Resize
+// Resize Image
 // ======================
 export const resizeImage = async (req, res) => {
   try {
@@ -54,12 +60,9 @@ export const resizeImage = async (req, res) => {
     const outputPath = path.join(uploadDir, `resized-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
-    const w = parseInt(width, 10);
-    const h = parseInt(height, 10);
-    if ([w, h].some(isNaN)) return res.status(400).json({ error: "Width and height must be numbers" });
-
-    const image = await Jimp.read(inputPath);
-    await image.resize(w, h).writeAsync(outputPath);
+    await sharp(inputPath)
+      .resize(parseInt(width, 10), parseInt(height, 10))
+      .toFile(outputPath);
 
     res.json({ message: "Image resized", filename: `resized-${filename}` });
   } catch (err) {
@@ -69,7 +72,7 @@ export const resizeImage = async (req, res) => {
 };
 
 // ======================
-// Compress
+// Compress Image
 // ======================
 export const compressImage = async (req, res) => {
   try {
@@ -80,9 +83,9 @@ export const compressImage = async (req, res) => {
     const outputPath = path.join(uploadDir, `compressed-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
-    const q = Math.min(Math.max(parseInt(quality, 10), 1), 100);
-    const image = await Jimp.read(inputPath);
-    await image.quality(q).writeAsync(outputPath);
+    await sharp(inputPath)
+      .jpeg({ quality: Math.min(Math.max(parseInt(quality, 10), 1), 100) })
+      .toFile(outputPath);
 
     const stats = fs.statSync(outputPath);
     const sizeKB = Math.round(stats.size / 1024);
@@ -95,7 +98,7 @@ export const compressImage = async (req, res) => {
 };
 
 // ======================
-// Rotate
+// Rotate Image
 // ======================
 export const rotateImage = async (req, res) => {
   try {
@@ -107,11 +110,9 @@ export const rotateImage = async (req, res) => {
     const outputPath = path.join(uploadDir, `rotated-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
-    const a = parseInt(angle, 10);
-    if (isNaN(a)) return res.status(400).json({ error: "Angle must be a number" });
-
-    const image = await Jimp.read(inputPath);
-    await image.rotate(a).writeAsync(outputPath);
+    await sharp(inputPath)
+      .rotate(parseInt(angle, 10))
+      .toFile(outputPath);
 
     res.json({ message: "Image rotated", filename: `rotated-${filename}` });
   } catch (err) {
@@ -121,7 +122,7 @@ export const rotateImage = async (req, res) => {
 };
 
 // ======================
-// Crop
+// Crop Image
 // ======================
 export const cropImage = async (req, res) => {
   try {
@@ -133,15 +134,9 @@ export const cropImage = async (req, res) => {
     const outputPath = path.join(uploadDir, `cropped-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
-    const w = parseInt(width, 10);
-    const h = parseInt(height, 10);
-    const l = parseInt(left, 10);
-    const t = parseInt(top, 10);
-    if ([w, h, l, t].some(isNaN))
-      return res.status(400).json({ error: "Width, height, left, top must be numbers" });
-
-    const image = await Jimp.read(inputPath);
-    await image.crop(l, t, w, h).writeAsync(outputPath);
+    await sharp(inputPath)
+      .extract({ width: parseInt(width, 10), height: parseInt(height, 10), left: parseInt(left, 10), top: parseInt(top, 10) })
+      .toFile(outputPath);
 
     res.json({ message: "Image cropped", filename: `cropped-${filename}` });
   } catch (err) {
