@@ -1,10 +1,14 @@
 import path from "path";
 import fs from "fs";
-import JimpCJS from "jimp";
+import * as Jimp from "jimp"; // Correct ESM import
 
-const Jimp = JimpCJS; // Correct ESM import
+// Ensure uploads folder exists
+const uploadDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
+// ======================
 // Upload
+// ======================
 export const uploadImage = (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
@@ -15,10 +19,12 @@ export const uploadImage = (req, res) => {
   }
 };
 
+// ======================
 // Download
+// ======================
 export const downloadImage = (req, res) => {
   try {
-    const filePath = path.join(process.cwd(), "uploads", req.params.filename);
+    const filePath = path.join(uploadDir, req.params.filename);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: "File not found" });
 
     res.download(filePath, req.params.filename, (err) => {
@@ -36,39 +42,43 @@ export const downloadImage = (req, res) => {
   }
 };
 
+// ======================
 // Resize
+// ======================
 export const resizeImage = async (req, res) => {
   try {
     const { filename, width, height } = req.body;
     if (!filename || !width || !height)
       return res.status(400).json({ error: "Filename, width, and height required" });
 
-    const inputPath = path.join("uploads", filename);
-    const outputPath = path.join("uploads", `resized-${filename}`);
+    const inputPath = path.join(uploadDir, filename);
+    const outputPath = path.join(uploadDir, `resized-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
     const w = parseInt(width, 10);
     const h = parseInt(height, 10);
-    if (isNaN(w) || isNaN(h))
-      return res.status(400).json({ error: "Width and height must be numbers" });
+    if ([w, h].some(isNaN)) return res.status(400).json({ error: "Width and height must be numbers" });
 
     const image = await Jimp.read(inputPath);
     await image.resize(w, h).writeAsync(outputPath);
 
     res.json({ message: "Image resized", filename: `resized-${filename}` });
   } catch (err) {
+    console.error("Resize Error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
+// ======================
 // Compress
+// ======================
 export const compressImage = async (req, res) => {
   try {
     const { filename, quality } = req.body;
     if (!filename || !quality) return res.status(400).json({ error: "Filename and quality required" });
 
-    const inputPath = path.join("uploads", filename);
-    const outputPath = path.join("uploads", `compressed-${filename}`);
+    const inputPath = path.join(uploadDir, filename);
+    const outputPath = path.join(uploadDir, `compressed-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
     const q = Math.min(Math.max(parseInt(quality, 10), 1), 100);
@@ -85,15 +95,17 @@ export const compressImage = async (req, res) => {
   }
 };
 
+// ======================
 // Rotate
+// ======================
 export const rotateImage = async (req, res) => {
   try {
     const { filename, angle } = req.body;
     if (!filename || angle === undefined)
       return res.status(400).json({ error: "Filename and angle required" });
 
-    const inputPath = path.join("uploads", filename);
-    const outputPath = path.join("uploads", `rotated-${filename}`);
+    const inputPath = path.join(uploadDir, filename);
+    const outputPath = path.join(uploadDir, `rotated-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
     const a = parseInt(angle, 10);
@@ -104,25 +116,22 @@ export const rotateImage = async (req, res) => {
 
     res.json({ message: "Image rotated", filename: `rotated-${filename}` });
   } catch (err) {
+    console.error("Rotate Error:", err);
     res.status(500).json({ error: err.message });
   }
 };
 
+// ======================
 // Crop
+// ======================
 export const cropImage = async (req, res) => {
   try {
     const { filename, width, height, left, top } = req.body;
-    if (
-      !filename ||
-      width === undefined ||
-      height === undefined ||
-      left === undefined ||
-      top === undefined
-    )
+    if (!filename || width === undefined || height === undefined || left === undefined || top === undefined)
       return res.status(400).json({ error: "Filename, width, height, left, and top required" });
 
-    const inputPath = path.join("uploads", filename);
-    const outputPath = path.join("uploads", `cropped-${filename}`);
+    const inputPath = path.join(uploadDir, filename);
+    const outputPath = path.join(uploadDir, `cropped-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
     const w = parseInt(width, 10);
@@ -137,6 +146,7 @@ export const cropImage = async (req, res) => {
 
     res.json({ message: "Image cropped", filename: `cropped-${filename}` });
   } catch (err) {
+    console.error("Crop Error:", err);
     res.status(500).json({ error: err.message });
   }
 };
