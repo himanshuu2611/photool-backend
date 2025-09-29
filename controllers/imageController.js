@@ -1,10 +1,6 @@
 import path from "path";
 import fs from "fs";
-import * as Jimp from "jimp";// Import as CJS
-
-const image = await Jimp.read(inputPath);
-await image.resize(w, h).writeAsync(outputPath);
-
+import * as Jimp from "jimp"; // Correct ESM import
 
 // Upload
 export const uploadImage = (req, res) => {
@@ -28,7 +24,9 @@ export const downloadImage = (req, res) => {
         console.error("Error downloading file:", err);
         res.status(500).json({ error: "Error downloading file" });
       } else {
-        fs.unlink(filePath, (err) => { if (err) console.error("Error deleting file:", err); });
+        fs.unlink(filePath, (err) => {
+          if (err) console.error("Error deleting file:", err);
+        });
       }
     });
   } catch (err) {
@@ -47,13 +45,14 @@ export const resizeImage = async (req, res) => {
     const outputPath = path.join("uploads", `resized-${filename}`);
     if (!fs.existsSync(inputPath)) return res.status(404).json({ error: "File not found" });
 
-    const image = await Jimp.read(inputPath);
     const w = parseInt(width, 10);
     const h = parseInt(height, 10);
     if (isNaN(w) || isNaN(h))
       return res.status(400).json({ error: "Width and height must be numbers" });
 
+    const image = await Jimp.read(inputPath);
     await image.resize(w, h).writeAsync(outputPath);
+
     res.json({ message: "Image resized", filename: `resized-${filename}` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -75,9 +74,9 @@ export const compressImage = async (req, res) => {
     await image.quality(q).writeAsync(outputPath);
 
     const stats = fs.statSync(outputPath);
-    const outputKB = Math.round(stats.size / 1024);
+    const sizeKB = Math.round(stats.size / 1024);
 
-    res.json({ message: "Image compressed", filename: `compressed-${filename}`, sizeKB: outputKB });
+    res.json({ message: "Image compressed", filename: `compressed-${filename}`, sizeKB });
   } catch (err) {
     console.error("Compress Error:", err);
     res.status(500).json({ error: err.message });
@@ -88,7 +87,8 @@ export const compressImage = async (req, res) => {
 export const rotateImage = async (req, res) => {
   try {
     const { filename, angle } = req.body;
-    if (!filename || angle === undefined) return res.status(400).json({ error: "Filename and angle required" });
+    if (!filename || angle === undefined)
+      return res.status(400).json({ error: "Filename and angle required" });
 
     const inputPath = path.join("uploads", filename);
     const outputPath = path.join("uploads", `rotated-${filename}`);
@@ -110,7 +110,13 @@ export const rotateImage = async (req, res) => {
 export const cropImage = async (req, res) => {
   try {
     const { filename, width, height, left, top } = req.body;
-    if (!filename || width === undefined || height === undefined || left === undefined || top === undefined)
+    if (
+      !filename ||
+      width === undefined ||
+      height === undefined ||
+      left === undefined ||
+      top === undefined
+    )
       return res.status(400).json({ error: "Filename, width, height, left, and top required" });
 
     const inputPath = path.join("uploads", filename);
