@@ -1,6 +1,8 @@
 import path from "path";
 import fs from "fs";
-import * as Jimp from "jimp"; // Correct ESM import
+import JimpCJS from "jimp";
+
+const Jimp = JimpCJS; // Correct ESM import
 
 // Upload
 export const uploadImage = (req, res) => {
