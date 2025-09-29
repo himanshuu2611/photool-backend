@@ -2,6 +2,9 @@ import path from "path";
 import fs from "fs";
 import * as Jimp from "jimp";// Import as CJS
 
+const image = await Jimp.read(inputPath);
+await image.resize(w, h).writeAsync(outputPath);
+
 
 // Upload
 export const uploadImage = (req, res) => {
