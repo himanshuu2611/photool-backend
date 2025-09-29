@@ -1,6 +1,7 @@
 import path from "path";
 import fs from "fs";
-import Jimp from "jimp"; // Import as CJS
+import * as Jimp from "jimp";
+ // Import as CJS
 
 
 // Upload
