@@ -1,23 +1,26 @@
 import express from "express";
 import cors from "cors";
 import fs from "fs";
-import imageRoutes from "./routes/imageRoutes.js";
+import path from "path";
 import dotenv from "dotenv";
+import imageRoutes from "./routes/imageRoutes.js";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Absolute uploads folder path
+const uploadDir = path.join(process.cwd(), "uploads");
+
 // Ensure uploads folder exists
-const uploadDir = "uploads";
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(uploadDir));
 
 // Routes
 app.use("/api/images", imageRoutes);
@@ -28,6 +31,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message });
 });
 
+// Start server
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

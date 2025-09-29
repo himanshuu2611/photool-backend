@@ -1,10 +1,8 @@
 import path from "path";
 import fs from "fs";
-import * as Jimp from "jimp"; // Correct ESM import
+import * as Jimp from "jimp";
 
-// Ensure uploads folder exists
 const uploadDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 // ======================
 // Upload
@@ -38,6 +36,7 @@ export const downloadImage = (req, res) => {
       }
     });
   } catch (err) {
+    console.error("Download Error:", err);
     res.status(500).json({ error: "Server error while downloading file" });
   }
 };
